@@ -1,5 +1,6 @@
 package com.bignerdranch.android.geoquiz;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -16,6 +17,7 @@ public class QuizActivity extends AppCompatActivity {
 
     private static final String TAG = "QuizActivity";
     private static final String KEY_INDEX = "index";
+    private static final int REQUEST_CODE_CHEAT = 0;
 
     private Button mTrueButton;
     private Button mCheatButton;
@@ -39,6 +41,7 @@ public class QuizActivity extends AppCompatActivity {
     };
 
     private int mCurrentIndex = 0;
+    private boolean mIsCheater;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,8 +79,9 @@ public class QuizActivity extends AppCompatActivity {
         mCheatButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(QuizActivity.this, CheatActivity.class);
-                startActivity(intent);
+                boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
+                Intent intent = CheatActivity.newIntent(QuizActivity.this, answerIsTrue);
+                startActivityForResult(intent, REQUEST_CODE_CHEAT);
             }
         });
 
@@ -86,6 +90,7 @@ public class QuizActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 mCurrentIndex = (mCurrentIndex + 1) % mQuestionBank.length;
+                mIsCheater = false;
                 updateQuestion();
                 mTrueButton.setEnabled(true);
                 mFalseButton.setEnabled(true);
@@ -109,6 +114,20 @@ public class QuizActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode != Activity.RESULT_OK) {
+            return;
+        }
+
+        if (requestCode == REQUEST_CODE_CHEAT) {
+            if (data == null) {
+                return;
+            }
+            mIsCheater = CheatActivity.wasAnswerShown(data);
+        }
+    }
+
+    @Override
     public void onSaveInstanceState(Bundle savedInstanceState) {
         super.onSaveInstanceState(savedInstanceState);
         savedInstanceState.putInt(KEY_INDEX, mCurrentIndex);
@@ -119,24 +138,28 @@ public class QuizActivity extends AppCompatActivity {
         mQuestionTextView.setText(question);
     }
 
-    private void checkAnswer(boolean userPressedTrue) {
+    private void checkAnswer(boolean userPressedTrue)  {
         boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
         mQuestionsAnswered++;
 
         NumberFormat numberFormat = NumberFormat.getPercentInstance();
         numberFormat.setMinimumFractionDigits(0);
 
-        if (userPressedTrue == answerIsTrue) {
-            mCorrectAnswers++;
-            double score = mCorrectAnswers / mQuestionsAnswered;
-            CharSequence correctMessage = String.format("%s Your score: %s",
-                    getString(R.string.correct_toast), numberFormat.format(score));
-            Toast.makeText(this, correctMessage, Toast.LENGTH_SHORT).show();
+        if (mIsCheater) {
+            Toast.makeText(this, R.string.judgment_toast, Toast.LENGTH_SHORT).show();
         } else {
-            double score = mCorrectAnswers / mQuestionsAnswered;
-            CharSequence incorrectMessage = String.format("%s Your score: %s",
-                    getString(R.string.incorrect_toast), numberFormat.format(score));
-            Toast.makeText(this, incorrectMessage, Toast.LENGTH_SHORT).show();
+            if (userPressedTrue == answerIsTrue) {
+                mCorrectAnswers++;
+                double score = mCorrectAnswers / mQuestionsAnswered;
+                CharSequence correctMessage = String.format("%s Your score: %s",
+                        getString(R.string.correct_toast), numberFormat.format(score));
+                Toast.makeText(this, correctMessage, Toast.LENGTH_SHORT).show();
+            } else {
+                double score = mCorrectAnswers / mQuestionsAnswered;
+                CharSequence incorrectMessage = String.format("%s Your score: %s",
+                        getString(R.string.incorrect_toast), numberFormat.format(score));
+                Toast.makeText(this, incorrectMessage, Toast.LENGTH_SHORT).show();
+            }
         }
 
         mTrueButton.setEnabled(false);

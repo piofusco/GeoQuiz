@@ -1,5 +1,9 @@
 package com.bignerdranch.android.geoquiz;
 
+import android.content.Context;
+import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
+import android.support.test.InstrumentationRegistry;
 import android.support.test.rule.ActivityTestRule;
 import android.support.test.runner.AndroidJUnit4;
 
@@ -19,8 +23,7 @@ import static org.hamcrest.Matchers.not;
 public class QuizActivityTests {
 
     @Rule
-    public ActivityTestRule<QuizActivity> mActivityTest =
-            new ActivityTestRule<>(QuizActivity.class);
+    public ActivityTestRule<QuizActivity> subject = new ActivityTestRule<>(QuizActivity.class);
 
     @Test
     public void testActivityInitializes() {
@@ -99,6 +102,15 @@ public class QuizActivityTests {
         onView(withId(R.id.false_button)).check(matches(not(isEnabled())));
     }
 
+    @Test
+    public void test_whenActivityIsRotated_thenUIStatePersists() {
+        tapNextButton();
+        rotateScreen();
+
+        onView(withId(R.id.question_text_view)).check(matches(
+                withText("The Pacific Ocean is larger than the Atlantic Ocean.")));
+    }
+
     private void tapTrueButton() {
         onView(withId(R.id.true_button)).perform(click());
     }
@@ -110,9 +122,13 @@ public class QuizActivityTests {
     private void tapPreviousButton() {
         onView(withId(R.id.prev_button)).perform(click());
     }
-}
 
-/*
-    onView(withId(R.id.greetEditText)).perform(typeText("Jake"), closeSoftKeyboard());
-    onView(withId(R.id.messageTextView)).check(matches(withText("Hello, Jake!")));
- */
+    private void rotateScreen() {
+        Context context = InstrumentationRegistry.getTargetContext();
+        int orientation = context.getResources().getConfiguration().orientation;
+
+        subject.getActivity().setRequestedOrientation(
+                (orientation == Configuration.ORIENTATION_PORTRAIT) ?
+                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+    }
+}
